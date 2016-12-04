@@ -65,11 +65,12 @@ Uses crt, sysutils, strutils;
           end;
         end;
 
-        if not containWords then num := strToInt(str);
+        if not containWords then num := strToInt64(str);
       end;
 
       toNumber := num;
     end;
+  { TODO: Remove this one }
   { Function containNumber }
     Function containNumber(str: String):Boolean;
     { I.S: Mengambil masukan dari User berupa String
@@ -178,6 +179,22 @@ Uses crt, sysutils, strutils;
       result := concat('Rp. ', result);
 
       formatCurrency := result;
+    end;
+  { Function onlyWords }
+    Function onlyWords(str: String):Boolean;
+    var i, len: Integer;
+    begin
+      onlyWords := true;
+      len := length(str);
+
+      for i := 1 to len do
+      begin
+        if not (str[i] in ['a' .. 'z', 'A' .. 'Z', ' ']) then
+        begin
+          onlyWords := false;
+          break;
+        end;
+      end;
     end;
 
 { PROCEDURES }
@@ -377,7 +394,7 @@ Uses crt, sysutils, strutils;
       case number of
         0: displayMsg(['', '', '', '']);
         1: displayErr(['', 'Perintah tidak dikenali!', '', '']);
-        2: displayWarn(['', 'Perintah tidak dikenali!', '', '']);
+        2: displayErr(['', 'Argumen/parameter dibutuhkan!', '', '']);
         3: displayInfo(['', 'Data disimpan di dalam database.txt', '', '']);
         4: displaySucc(['', 'Eksekusi berhasil!', '', '']);
         5: displayErr(['', 'Tidak ada data nasabah yang dapat ditampilkan!', '', '']);
@@ -428,7 +445,7 @@ Uses crt, sysutils, strutils;
       i: Integer;
       input, fullname, gender, role, job, balance: String;
       num: Int64;
-      haveNumber, done, exit: Boolean;
+      itIsWords, done, exit: Boolean;
     begin
       if n < 1 then n := 1;
 
@@ -457,11 +474,10 @@ Uses crt, sysutils, strutils;
             if (role <> '') and (role <> 'pribadi') and (role <> 'bisnis') then
             begin
               write(' ');
-              displayErr(['Harap masukkan "bisnis" atau "pribadi" saja!']);
+              displayErr(['Harap masukkan "bisnis" atau "pribadi" saja!', '']);
             end;
-            writeln;
           until (role = 'bisnis') or (role = 'pribadi');
-          customer[indexes].role := role;
+          writeln;
 
           if exit = true then break;
 
@@ -475,16 +491,15 @@ Uses crt, sysutils, strutils;
               break;
             end;
 
-            haveNumber := containNumber(fullname);
+            itIsWords := onlyWords(fullname);
 
-            if haveNumber then
+            if not itIsWords then
             begin
               write(' ');
-              displayErr(['Nama tidak sesuai!']);
+              displayErr(['Harap masukkan huruf dan spasi saja!', '']);
             end;
-            writeln;
-          until (not haveNumber) and (fullname <> '');
-          customer[indexes].fullname := fullname;
+          until (itIsWords) and (fullname <> '');
+          writeln;
 
           if exit = true then break;
 
@@ -502,11 +517,10 @@ Uses crt, sysutils, strutils;
             if ((gender <> 'P') and (gender <> 'W')) and (gender <> '') then
             begin
               write(' ');
-              displayErr(['Harap masukkan "P" atau "W" saja!']);
+              displayErr(['Harap masukkan "P" atau "W" saja!', '']);
             end;
-            writeln;
           until (gender = 'P') or (gender = 'W');
-          customer[indexes].gender := gender;
+          writeln;
 
           if exit = true then break;
 
@@ -520,16 +534,15 @@ Uses crt, sysutils, strutils;
               break;
             end;
 
-            haveNumber := containNumber(job);
+            itIsWords := onlyWords(job);
 
-            if haveNumber then
+            if not itIsWords then
             begin
               write(' ');
-              displayErr(['Pekerjaan tidak sesuai!']);
+              displayErr(['Harap masukkan huruf dan spasi saja!', '']);
             end;
-            writeln;
-          until (not haveNumber) and (job <> '');
-          customer[indexes].job := job;
+          until (itIsWords) and (job <> '');
+          writeln;
 
           if exit = true then break;
 
@@ -548,11 +561,10 @@ Uses crt, sysutils, strutils;
             if (num < 1) and (balance <> '') and (balance <> '0') then
             begin
               write(' ');
-              displayWarn(['Tabungan awal diatur menjadi Rp. 0,-']);
+              displayWarn(['Tabungan awal diatur menjadi Rp. 0,-', '']);
             end;
-            writeln;
           until balance <> '';
-          customer[indexes].balance := num;
+          writeln;
 
           if exit = true then break;
 
@@ -565,10 +577,19 @@ Uses crt, sysutils, strutils;
             done := true;
         until done;
 
-        if not exit then inc(indexes);
+        if not exit then
+        begin
+          customer[indexes].role := role;
+          customer[indexes].fullname := fullname;
+          customer[indexes].gender := gender;
+          customer[indexes].job := job;
+          customer[indexes].balance := num;
+
+          inc(indexes);
+        end;
       end;
 
-      if not exit then errnum := 4;
+      if (not exit) or (i > 1) then errnum := 4;
     end;
   { Procedure resetDataFromList }
     Procedure resetDataFromList(var indexes: Integer;
@@ -624,13 +645,218 @@ Uses crt, sysutils, strutils;
       displayMsg(['', '']);
       holdOn;
     end;
+  { Procedure editDataFromList }
+    Procedure editDataFromList(var customer: Array of TCustomer;
+                               arg: Integer;
+                               var errnum: Integer);
+    var
+      input, fullname, gender, role, job, balance: String;
+      num: Int64;
+      done, exit, itIsWords: Boolean;
+    begin
+      exit := false;
+      arg := arg - 1;
+
+      repeat
+        clrscr;
+        bankelHead;
+
+        writeln;
+        writeln(' Menyunting Informasi Nasabah');
+        displayInfo(['',
+                     'Ketik ":k" untuk kembali ke menu utama',
+                     'Biarkan kosong pada bagian yang tidak ingin diubah',
+                     '']);
+
+        writeln('  [', customer[arg].role, ']');
+        repeat
+          write('  Jenis Akun: (bisnis/pribadi) ');
+          readln(role);
+          role := lowercase(role);
+
+          if role = '' then break;
+
+          if role = ':k' then
+          begin
+            exit := true;
+            break;
+          end;
+
+          if (role <> '') and (role <> 'pribadi') and (role <> 'bisnis') then
+          begin
+            write(' ');
+            displayErr(['Harap masukkan "bisnis" atau "pribadi" saja!', '']);
+          end;
+        until (role = 'bisnis') or (role = 'pribadi');
+        writeln;
+
+        if exit = true then break;
+
+        writeln('  [', customer[arg].fullname, ']');
+        repeat
+          write('  Nama Nasabah: ');
+          readln(fullname);
+
+          if fullname = '' then break;
+
+          if lowercase(fullname) = ':k' then
+          begin
+            exit := true;
+            break;
+          end;
+
+          itIsWords := onlyWords(fullname);
+
+          if not itIsWords then
+          begin
+            write(' ');
+            displayErr(['Harap masukkan huruf dan spasi saja!', '']);
+          end;
+        until itIsWords;
+        writeln;
+
+        if exit = true then break;
+
+        writeln('  [', customer[arg].gender, ']');
+        repeat
+          write('  Jenis Kelamin: (P/W) ');
+          readln(gender);
+          gender := uppercase(gender);
+
+          if gender = '' then break;
+
+          if gender = ':K' then
+          begin
+            exit := true;
+            break;
+          end;
+
+          if ((gender <> 'P') and (gender <> 'W')) and (gender <> '') then
+          begin
+            write(' ');
+            displayErr(['Harap masukkan "P" atau "W" saja!', '']);
+          end;
+        until (gender = 'P') or (gender = 'W');
+        writeln;
+
+        if exit = true then break;
+
+        writeln('  [', customer[arg].job, ']');
+        repeat
+          write('  Pekerjaan: ');
+          readln(job);
+
+          if job = '' then break;
+
+          if lowercase(job) = ':k' then
+          begin
+            exit := true;
+            break;
+          end;
+
+          itIsWords := onlyWords(job);
+
+          if not itIsWords then
+          begin
+            write(' ');
+            displayErr(['Harap masukkan huruf dan spasi saja!', '']);
+          end;
+        until itIsWords;
+        writeln;
+
+        if exit = true then break;
+
+        writeln('  [', formatCurrency(customer[arg].balance), ']');
+        repeat
+          write('  Tabungan: ');
+          readln(balance);
+
+          if balance = '' then break;
+
+          if lowercase(balance) = ':k' then
+          begin
+            exit := true;
+            break;
+          end;
+
+          num := toNumber(balance);
+
+          if (num < 1) and (balance <> '') and (balance <> '0') then
+          begin
+            write(' ');
+            displayWarn(['Tabungan diatur menjadi Rp. 0,-']);
+          end;
+        until balance <> '';
+        writeln;
+
+        if exit = true then break;
+
+        writeln;
+        write('  Sudah benar? (Y/n) ');
+        readln(input);
+        if lowercase(input) = 'n' then
+          done := false
+        else
+          done := true;
+      until done;
+
+      if not exit then
+      begin
+        if role <> '' then customer[arg].role := role;
+        if fullname <> '' then customer[arg].fullname := fullname;
+        if gender <> '' then customer[arg].gender := gender;
+        if job <> '' then customer[arg].job := job;
+        if balance <> '' then customer[arg].balance := num;
+
+        if done then errnum := 4;
+      end;
+    end;
+  { Procedure removeDataFromList }
+    Procedure removeDataFromList(var customer: Array of TCustomer;
+                                 arg: Integer;
+                                 var indexes: Integer;
+                                 var errnum: Integer);
+    var
+      i, j: Integer;
+      remove: String;
+    begin
+      clrscr;
+      bankelHead;
+      arg := arg - 1;
+
+      writeln;
+      writeln(' Data nasabah milik "', customer[arg].fullname,
+              '" (', customer[arg].role ,') akan dihapus');
+      displayWarn(['', 'Data yang dihapus tidak dapat dikembalikan', '']);
+      write(' Yakin hapus? (y/N) ');
+      readln(remove);
+
+      if lowercase(remove) = 'y' then
+      begin
+        if arg < (indexes - 1) then
+        begin
+          for i := arg to (indexes - 2) do
+          begin
+            j := i + 1;
+            customer[i].role     := customer[j].role;
+            customer[i].fullname := customer[j].fullname;
+            customer[i].gender   := customer[j].gender;
+            customer[i].job      := customer[j].job;
+            customer[i].balance  := customer[j].balance;
+          end;
+        end;
+
+        indexes := indexes - 1;
+        errnum := 4;
+      end;
+    end;
+
 
 { MAIN }
 Var
   customer: Array of TCustomer;
-  input, command, argument, database: String;
-  arg, errnum, indexes, i: Integer;
-  tmp: Array of Integer;
+  command, argument, database: String;
+  arg, errnum, indexes: Integer;
 
 Begin
   database := 'database.txt';
@@ -659,22 +885,42 @@ Begin
             errnum := 0;
 
             case command of
-              'info': showInfo(indexes);
-              'tambah': addDataToList(customer, indexes, arg, errnum);
-              'sunting': goto main;
-              'lihat': begin
-                          if indexes > 0 then
-                          begin
-                            if (arg = 0) or ((arg > 0) and (arg <= indexes)) then
-                              showDataFromList(customer, arg, indexes)
+              'info'   : showInfo(indexes);
+              'tambah' : addDataToList(customer, indexes, arg, errnum);
+              'sunting': begin
+                            if arg = 0 then
+                              errnum := 2
                             else
-                              errnum := 6;
-                          end
-                          else
-                            errnum := 5;
-                       end;
-              'hapus': goto main;
-              'reset': resetDataFromList(indexes, errnum);
+                            begin
+                              if (arg > 0) and (arg <= indexes) then
+                                editDataFromList(customer, arg, errnum)
+                              else
+                                errnum := 6;
+                            end;
+                         end;
+              'lihat'  : begin
+                            if indexes > 0 then
+                            begin
+                              if (arg = 0) or ((arg > 0) and (arg <= indexes)) then
+                                showDataFromList(customer, arg, indexes)
+                              else
+                                errnum := 6;
+                            end
+                            else
+                              errnum := 5;
+                         end;
+              'hapus'  : begin
+                            if arg = 0 then
+                              errnum := 2
+                            else
+                            begin
+                              if (arg > 0) and (arg <= indexes) then
+                                removeDataFromList(customer, arg, indexes, errnum)
+                              else
+                                errnum := 6;
+                            end;
+                         end;
+              'reset'  : resetDataFromList(indexes, errnum);
             end;
 
             goto main;
