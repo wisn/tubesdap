@@ -341,7 +341,6 @@ Uses crt, sysutils;
                   '  Nasabah terdaftar: XXX',
                   '',
                   '']);
-
       holdOn;
     end;
 
