@@ -9,7 +9,7 @@
 }
 
 Program Bankel;
-Uses crt, sysutils;
+Uses crt, sysutils, strutils;
 
 { TYPES }
   { Type Date }
@@ -58,7 +58,7 @@ Uses crt, sysutils;
 
         for i := 1 to len do
         begin
-          if not (str[i] in ['0' .. '9']) then
+          if not (str[i] in ['0' .. '9', '-']) then
           begin
             containWords := true;
             break;
@@ -152,6 +152,32 @@ Uses crt, sysutils;
         end;
       end;
       takeArgument := result;
+    end;
+  { Function formatCurrency }
+    Function formatCurrency(balance: Int64):String;
+    var
+      converted, result: String;
+      i, j, len: Integer;
+    begin
+      converted := intToStr(balance);
+      len := length(converted);
+      result := '';
+
+      j := 1;
+      for i := len downto 1 do
+      begin
+        result := concat(result, converted[i]);
+        if (j mod 3 = 0) and (j < len) then
+          result := concat(result, '.');
+
+        inc(j);
+      end;
+
+      result := reverseString(result);
+      result := concat(result, ',-');
+      result := concat('Rp. ', result);
+
+      formatCurrency := result;
     end;
 
 { PROCEDURES }
@@ -355,6 +381,7 @@ Uses crt, sysutils;
         3: displayInfo(['', 'Data disimpan di dalam database.txt', '', '']);
         4: displaySucc(['', 'Eksekusi berhasil!', '', '']);
         5: displayErr(['', 'Tidak ada data nasabah yang dapat ditampilkan!', '', '']);
+        6: displayErr(['', 'ID yang dicari tidak ada!', '', '']);
         else displayErr(['', 'Kesalahan fatal!', 'Terjadi kesalahan yang tidak diketahui!', '']);
       end;
     end;
@@ -581,6 +608,17 @@ Uses crt, sysutils;
                   '(', customer[i].role, '): ',
                   customer[i].fullname);
         end;
+      end
+      else
+      begin
+        arg := arg - 1;
+        writeln;
+        writeln('   [', arg + 1,']');
+        writeln('   Jenis Akun    : ', customer[arg].role);
+        writeln('   Nama Lengkap  : ', customer[arg].fullname);
+        writeln('   Jenis Kelamin : ', customer[arg].gender);
+        writeln('   Pekerjaan     : ', customer[arg].job);
+        writeln('   Tabungan      : ', formatCurrency(customer[arg].balance));
       end;
 
       displayMsg(['', '']);
@@ -591,7 +629,7 @@ Uses crt, sysutils;
 Var
   customer: Array of TCustomer;
   input, command, argument, database: String;
-  errnum, indexes, i: Integer;
+  arg, errnum, indexes, i: Integer;
   tmp: Array of Integer;
 
 Begin
@@ -612,6 +650,7 @@ Begin
         displayMessage(errnum);
 
         askUserFor(command, argument);
+        arg := toNumber(argument);
 
         while command <> 'keluar' do
         begin
@@ -621,11 +660,16 @@ Begin
 
             case command of
               'info': showInfo(indexes);
-              'tambah': addDataToList(customer, indexes, toNumber(argument), errnum);
+              'tambah': addDataToList(customer, indexes, arg, errnum);
               'sunting': goto main;
               'lihat': begin
                           if indexes > 0 then
-                            showDataFromList(customer, toNumber(argument), indexes)
+                          begin
+                            if (arg = 0) or ((arg > 0) and (arg <= indexes)) then
+                              showDataFromList(customer, arg, indexes)
+                            else
+                              errnum := 6;
+                          end
                           else
                             errnum := 5;
                        end;
