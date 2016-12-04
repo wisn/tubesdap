@@ -189,26 +189,53 @@ Uses crt, sysutils;
       writeln;
     end;
   { Procedure importDataFrom }
-    Procedure importDataFrom(database: String; var customer: Array of TCustomer);
-    var fileStream: Text;
+    Procedure importDataFrom(database: String;
+                             var customer: Array of TCustomer;
+                             var indexes: Integer);
+    var
+      fileStream: Text;
+      i: Integer;
     begin
       assign(fileStream, database);
       reset(fileStream);
+      readln(fileStream, indexes);
+
+      if indexes > 0 then
+      begin
+        for i := 0 to (indexes - 1) do
+        begin
+          readln(fileStream, customer[i].role);
+          readln(fileStream, customer[i].fullname);
+          readln(fileStream, customer[i].gender);
+          readln(fileStream, customer[i].job);
+          readln(fileStream, customer[i].balance);
+        end;
+      end;
+
       close(fileStream);
     end;
   { Procedure exportDataTo }
-    Procedure exportDataTo(database: String; customer: Array of TCustomer);
+    Procedure exportDataTo(database: String;
+                           customer: Array of TCustomer;
+                           indexes: Integer);
     var
       fileStream: Text;
-      len: Integer;
+      i: Integer;
     begin
       assign(fileStream, database);
       rewrite(fileStream);
-      len := length(customer);
+      writeln(fileStream, indexes);
 
-      if len > 0 then
+      if indexes > 0 then
       begin
-
+        for i := 0 to (indexes - 1) do
+        begin
+          writeln(fileStream, customer[i].role);
+          writeln(fileStream, customer[i].fullname);
+          writeln(fileStream, customer[i].gender);
+          writeln(fileStream, customer[i].job);
+          writeln(fileStream, customer[i].balance);
+        end;
       end;
 
       close(fileStream);
@@ -325,8 +352,9 @@ Uses crt, sysutils;
         0: displayMsg(['', '', '', '']);
         1: displayErr(['', 'Perintah tidak dikenali!', '', '']);
         2: displayWarn(['', 'Perintah tidak dikenali!', '', '']);
-        3: displayInfo(['', 'Data disimpan di dalam database.txt!', '', '']);
+        3: displayInfo(['', 'Data disimpan di dalam database.txt', '', '']);
         4: displaySucc(['', 'Eksekusi berhasil!', '', '']);
+        5: displayErr(['', 'Tidak ada data nasabah yang dapat ditampilkan!', '', '']);
         else displayErr(['', 'Kesalahan fatal!', 'Terjadi kesalahan yang tidak diketahui!', '']);
       end;
     end;
@@ -346,20 +374,22 @@ Uses crt, sysutils;
     { I.S: -
       F.S: Menahan program hingga User menekan ENTER }
     begin
-      write('(tekan ENTER untuk kembali)');
+      write(' (tekan ENTER untuk kembali)');
       readln;
     end;
   { Procedure showInfo }
-    Procedure showInfo;
+    Procedure showInfo(indexes: Integer);
     { I.S: -
       F.S: Menampilkan informasi mengenai BANKEL }
     begin
       clrscr;
       bankelHead;
-      displayMsg(['Informasi BANKEL',
-                  '  Nasabah terdaftar: XXX',
-                  '',
-                  '']);
+
+      displayMsg([' Informasi BANKEL', '']);
+
+      writeln('   Nasabah Terdaftar: ', indexes);
+
+      displayMsg(['', '']);
       holdOn;
     end;
   { Procedure addDataToList }
@@ -371,23 +401,31 @@ Uses crt, sysutils;
       i: Integer;
       input, fullname, gender, role, job, balance: String;
       num: Int64;
-      haveNumber, done: Boolean;
+      haveNumber, done, exit: Boolean;
     begin
       if n < 1 then n := 1;
+
       for i := 1 to n do
       begin
+        exit := false;
         repeat
           clrscr;
           bankelHead;
 
           writeln;
           writeln(' Data ke-', i);
-          writeln;
+          displayInfo(['', 'Ketik ":k" untuk kembali ke menu utama', '']);
 
           repeat
             write('  Jenis Akun: (bisnis/pribadi) ');
             readln(role);
             role := lowercase(role);
+
+            if role = ':k' then
+            begin
+              exit := true;
+              break;
+            end;
 
             if (role <> '') and (role <> 'pribadi') and (role <> 'bisnis') then
             begin
@@ -398,9 +436,18 @@ Uses crt, sysutils;
           until (role = 'bisnis') or (role = 'pribadi');
           customer[indexes].role := role;
 
+          if exit = true then break;
+
           repeat
             write('  Nama Nasabah: ');
             readln(fullname);
+
+            if lowercase(fullname) = ':k' then
+            begin
+              exit := true;
+              break;
+            end;
+
             haveNumber := containNumber(fullname);
 
             if haveNumber then
@@ -412,10 +459,18 @@ Uses crt, sysutils;
           until (not haveNumber) and (fullname <> '');
           customer[indexes].fullname := fullname;
 
+          if exit = true then break;
+
           repeat
             write('  Jenis Kelamin: (P/W) ');
             readln(gender);
             gender := uppercase(gender);
+
+            if gender = ':K' then
+            begin
+              exit := true;
+              break;
+            end;
 
             if ((gender <> 'P') and (gender <> 'W')) and (gender <> '') then
             begin
@@ -426,9 +481,18 @@ Uses crt, sysutils;
           until (gender = 'P') or (gender = 'W');
           customer[indexes].gender := gender;
 
+          if exit = true then break;
+
           repeat
             write('  Pekerjaan: ');
             readln(job);
+
+            if lowercase(job) = ':k' then
+            begin
+              exit := true;
+              break;
+            end;
+
             haveNumber := containNumber(job);
 
             if haveNumber then
@@ -440,12 +504,21 @@ Uses crt, sysutils;
           until (not haveNumber) and (job <> '');
           customer[indexes].job := job;
 
+          if exit = true then break;
+
           repeat
             write('  Tabungan Awal: ');
             readln(balance);
+
+            if lowercase(balance) = ':k' then
+            begin
+              exit := true;
+              break;
+            end;
+
             num := toNumber(balance);
 
-            if (num < 1) and (balance <> '') then
+            if (num < 1) and (balance <> '') and (balance <> '0') then
             begin
               write(' ');
               displayWarn(['Tabungan awal diatur menjadi Rp. 0,-']);
@@ -454,8 +527,10 @@ Uses crt, sysutils;
           until balance <> '';
           customer[indexes].balance := num;
 
+          if exit = true then break;
+
           writeln;
-          write('  Sudah benar? (y/n) ');
+          write('  Sudah benar? (Y/n) ');
           readln(input);
           if lowercase(input) = 'n' then
             done := false
@@ -463,10 +538,53 @@ Uses crt, sysutils;
             done := true;
         until done;
 
-        inc(indexes);
+        if not exit then inc(indexes);
       end;
 
-      errnum := 4;
+      if not exit then errnum := 4;
+    end;
+  { Procedure resetDataFromList }
+    Procedure resetDataFromList(var indexes: Integer;
+                                var errnum: Integer);
+    var choice: String;
+    begin
+      clrscr;
+      bankelHead;
+      displayWarn(['', 'Semua data akan dihapus', '']);
+
+      write(' Yakin hapus? (y/N) ');
+      readln(choice);
+
+      if lowercase(choice) = 'y' then
+      begin
+        indexes := 0;
+        errnum := 4;
+      end;
+    end;
+  { Procedure showDataFromList }
+    Procedure showDataFromList(customer: Array of TCustomer;
+                               arg: Integer;
+                               indexes: Integer);
+    var i: Integer;
+    begin
+      clrscr;
+      bankelHead;
+
+      displayMsg(['Data Nasabah', '']);
+      if arg = 0 then
+      begin
+        displayMsg(['', '   [ID](tipe akun): Nama Lengkap', '']);
+
+        for i := 0 to (indexes - 1) do
+        begin
+          writeln('    [', i + 1, ']',
+                  '(', customer[i].role, '): ',
+                  customer[i].fullname);
+        end;
+      end;
+
+      displayMsg(['', '']);
+      holdOn;
     end;
 
 { MAIN }
@@ -479,10 +597,10 @@ Var
 Begin
   database := 'database.txt';
   indexes := 0;
-  setLength(customer, 1);
+  setLength(customer, 99);
 
   if fileExists(database) then
-    importDataFrom(database, customer);
+    importDataFrom(database, customer, indexes);
 
   errnum := 3;
   command := '';
@@ -502,12 +620,17 @@ Begin
             errnum := 0;
 
             case command of
-              'info': showInfo;
+              'info': showInfo(indexes);
               'tambah': addDataToList(customer, indexes, toNumber(argument), errnum);
               'sunting': goto main;
-              'lihat': goto main;
+              'lihat': begin
+                          if indexes > 0 then
+                            showDataFromList(customer, toNumber(argument), indexes)
+                          else
+                            errnum := 5;
+                       end;
               'hapus': goto main;
-              'reset': goto main;
+              'reset': resetDataFromList(indexes, errnum);
             end;
 
             goto main;
@@ -519,5 +642,5 @@ Begin
           end;
         end;
 
-  exportDataTo(database, customer);
+  exportDataTo(database, customer, indexes);
 End.
