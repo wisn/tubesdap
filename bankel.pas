@@ -28,9 +28,10 @@ Uses crt, sysutils;
   { Type Customer }
     Type TCustomer = record
       fullname: String;
-      gender: Char;
+      gender: String;
+      job: String;
       role: String;
-      balance: Integer;
+      balance: Int64;
       transaction: Array of TTransaction;
       joined: TDate;
     end;
@@ -40,11 +41,12 @@ Uses crt, sysutils;
 
 { FUNCTIONS }
   { Function toNumber }
-    Function toNumber(str: String):Integer;
+    Function toNumber(str: String):Int64;
     { I.S: Mengambil masukan dari User berupa String
       F.S: Keluaran berupa Integer berdasarkan masukan dari User }
     var
-      i, len, num: Integer;
+      i, len: Integer;
+      num: Int64;
       containWords: Boolean;
     begin
       len := length(str);
@@ -67,6 +69,23 @@ Uses crt, sysutils;
       end;
 
       toNumber := num;
+    end;
+  { Function containNumber }
+    Function containNumber(str: String):Boolean;
+    { I.S: Mengambil masukan dari User berupa String
+      F.S: Keluaran berupa Boolean hasil dari identifikasi }
+    var i, len: Integer;
+    begin
+      containNumber := false;
+      len := length(str);
+      for i := 1 to len do
+      begin
+        if str[i] in ['0' .. '9'] then
+        begin
+          containNumber := true;
+          break;
+        end;
+      end;
     end;
   { Function takeCommand }
     Function takeCommand(text: String):String;
@@ -343,8 +362,114 @@ Uses crt, sysutils;
                   '']);
       holdOn;
     end;
+  { Procedure addDataToList }
+    Procedure addDataToList(var customer: Array of TCustomer;
+                            var indexes: Integer;
+                            n: Integer;
+                            var errnum: Integer);
+    var
+      i: Integer;
+      input, fullname, gender, role, job, balance: String;
+      num: Int64;
+      haveNumber, done: Boolean;
+    begin
+      if n < 1 then n := 1;
+      for i := 1 to n do
+      begin
+        repeat
+          clrscr;
+          bankelHead;
 
+          writeln;
+          writeln(' Data ke-', i);
+          writeln;
 
+          repeat
+            write('  Jenis Akun: (bisnis/pribadi) ');
+            readln(role);
+            role := lowercase(role);
+
+            if (role <> '') and (role <> 'pribadi') and (role <> 'bisnis') then
+            begin
+              write(' ');
+              displayErr(['Harap masukkan "bisnis" atau "pribadi" saja!']);
+            end;
+            writeln;
+          until (role = 'bisnis') or (role = 'pribadi');
+          customer[indexes].role := role;
+
+          repeat
+            write('  Nama Nasabah: ');
+            readln(fullname);
+            haveNumber := containNumber(fullname);
+
+            if haveNumber then
+            begin
+              write(' ');
+              displayErr(['Nama tidak sesuai!']);
+            end;
+            writeln;
+          until (not haveNumber) and (fullname <> '');
+          customer[indexes].fullname := fullname;
+
+          repeat
+            write('  Jenis Kelamin: (P/W) ');
+            readln(gender);
+            gender := uppercase(gender);
+
+            if ((gender <> 'P') and (gender <> 'W')) and (gender <> '') then
+            begin
+              write(' ');
+              displayErr(['Harap masukkan "P" atau "W" saja!']);
+            end;
+            writeln;
+          until (gender = 'P') or (gender = 'W');
+          customer[indexes].gender := gender;
+
+          repeat
+            write('  Pekerjaan: ');
+            readln(job);
+            haveNumber := containNumber(job);
+
+            if haveNumber then
+            begin
+              write(' ');
+              displayErr(['Pekerjaan tidak sesuai!']);
+            end;
+            writeln;
+          until (not haveNumber) and (job <> '');
+          customer[indexes].job := job;
+
+          repeat
+            write('  Tabungan Awal: ');
+            readln(balance);
+            num := toNumber(balance);
+
+            if (num < 1) and (balance <> '') then
+            begin
+              write(' ');
+              displayWarn(['Tabungan awal diatur menjadi Rp. 0,-']);
+            end;
+            writeln;
+          until balance <> '';
+          customer[indexes].balance := num;
+
+          writeln;
+          write('  Sudah benar? (y/n) ');
+          readln(input);
+          if lowercase(input) = 'n' then
+            done := false
+          else
+            done := true;
+        until done;
+
+        inc(indexes);
+      end;
+
+      errnum := 4;
+    end;
+
+{ MAIN }
 Var
   customer: Array of TCustomer;
   input, command, argument, database: String;
@@ -353,6 +478,9 @@ Var
 
 Begin
   database := 'database.txt';
+  indexes := 0;
+  setLength(customer, 1);
+
   if fileExists(database) then
     importDataFrom(database, customer);
 
@@ -375,7 +503,7 @@ Begin
 
             case command of
               'info': showInfo;
-              'tambah': goto main;
+              'tambah': addDataToList(customer, indexes, toNumber(argument), errnum);
               'sunting': goto main;
               'lihat': goto main;
               'hapus': goto main;
