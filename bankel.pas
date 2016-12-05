@@ -258,7 +258,7 @@ Uses crt, sysutils, strutils, dos;
                            indexes: Integer);
     var
       fileStream: Text;
-      i, j, k, balance: Integer;
+      i, j, k: Integer;
       role: String;
       ordinary: Array of TCustomer;
     begin
