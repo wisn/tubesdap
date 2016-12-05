@@ -9,21 +9,14 @@
 }
 
 Program Bankel;
-Uses crt, sysutils, strutils;
+Uses crt, sysutils, strutils, dos;
 
 { TYPES }
   { Type Date }
     Type TDate = record
-      minute: Integer;
-      hour: Integer;
       day: Integer;
       month: Integer;
       year: Integer;
-    end;
-  { Type Transaction }
-    Type TTransaction = record
-      date: TDate;
-      iocome: Integer;
     end;
   { Type Customer }
     Type TCustomer = record
@@ -32,7 +25,6 @@ Uses crt, sysutils, strutils;
       job: String;
       role: String;
       balance: Int64;
-      transaction: Array of TTransaction;
       joined: TDate;
     end;
 
@@ -252,6 +244,9 @@ Uses crt, sysutils, strutils;
           readln(fileStream, customer[i].gender);
           readln(fileStream, customer[i].job);
           readln(fileStream, customer[i].balance);
+          readln(fileStream, customer[i].joined.day);
+          readln(fileStream, customer[i].joined.month);
+          readln(fileStream, customer[i].joined.year);
         end;
       end;
 
@@ -263,21 +258,56 @@ Uses crt, sysutils, strutils;
                            indexes: Integer);
     var
       fileStream: Text;
-      i: Integer;
+      i, j, k, balance: Integer;
+      role: String;
+      ordinary: Array of TCustomer;
     begin
       assign(fileStream, database);
       rewrite(fileStream);
       writeln(fileStream, indexes);
+      setLength(ordinary, 99);
 
+      j := 0;
       if indexes > 0 then
       begin
         for i := 0 to (indexes - 1) do
         begin
-          writeln(fileStream, customer[i].role);
-          writeln(fileStream, customer[i].fullname);
-          writeln(fileStream, customer[i].gender);
-          writeln(fileStream, customer[i].job);
-          writeln(fileStream, customer[i].balance);
+          role := customer[i].role;
+          if role = 'bisnis' then
+          begin
+            writeln(fileStream, role);
+            writeln(fileStream, customer[i].fullname);
+            writeln(fileStream, customer[i].gender);
+            writeln(fileStream, customer[i].job);
+            writeln(fileStream, customer[i].balance);
+            writeln(fileStream, customer[i].joined.day);
+            writeln(fileStream, customer[i].joined.month);
+            writeln(fileStream, customer[i].joined.year);
+          end
+          else
+          begin
+            ordinary[j].role          := role;
+            ordinary[j].fullname      := customer[i].fullname;
+            ordinary[j].gender        := customer[i].gender;
+            ordinary[j].job           := customer[i].job;
+            ordinary[j].balance       := customer[i].balance;
+            ordinary[j].joined.day    := customer[i].joined.day;
+            ordinary[j].joined.month  := customer[i].joined.month;
+            ordinary[j].joined.year   := customer[i].joined.year;
+            inc(j);
+          end;
+        end;
+
+        for k := 0 to (j - 1) do
+        begin
+          writeln(fileStream, ordinary[k].role);
+          writeln(fileStream, ordinary[k].fullname);
+          writeln(fileStream, ordinary[k].gender);
+          writeln(fileStream, ordinary[k].job);
+          writeln(fileStream, ordinary[k].balance);
+          writeln(fileStream, ordinary[k].joined.day);
+          writeln(fileStream, ordinary[k].joined.month);
+          writeln(fileStream, ordinary[k].joined.year);
         end;
       end;
 
@@ -444,6 +474,7 @@ Uses crt, sysutils, strutils;
     var
       i: Integer;
       input, fullname, gender, role, job, balance: String;
+      day, month, year, wday: Word;
       num: Int64;
       itIsWords, done, exit: Boolean;
     begin
@@ -558,10 +589,38 @@ Uses crt, sysutils, strutils;
 
             num := toNumber(balance);
 
-            if (num < 1) and (balance <> '') and (balance <> '0') then
+            if num < 1000000 then
             begin
-              write(' ');
-              displayWarn(['Tabungan awal diatur menjadi Rp. 0,-', '']);
+              if role = 'bisnis' then
+              begin
+                write(' ');
+                displayWarn(['Untuk bisnis, tabungan awal minimal Rp. 1.000.000,-', '']);
+                write('  Pindahkan ke pribadi? (Y/n) ');
+                readln(input);
+                writeln;
+
+                if lowercase(input) = 'n' then
+                  balance := ''
+                else
+                  role := 'pribadi';
+              end;
+
+              if (role = 'pribadi') and (num < 100000) then
+              begin
+                write(' ');
+                displayWarn(['Untuk pribadi, tabungan awal minimal Rp. 100.000,-', '']);
+                write('  Batalkan? (Y/n) ');
+                readln(input);
+                writeln;
+
+                if lowercase(input) = 'n' then
+                  balance := ''
+                else
+                begin
+                  exit := true;
+                  break;
+                end;
+              end;
             end;
           until balance <> '';
           writeln;
@@ -585,6 +644,11 @@ Uses crt, sysutils, strutils;
           customer[indexes].job := job;
           customer[indexes].balance := num;
 
+          getDate(year, month, day, wday);
+          customer[indexes].joined.day   := day;
+          customer[indexes].joined.month := month;
+          customer[indexes].joined.year  := year;
+
           inc(indexes);
         end;
       end;
@@ -598,7 +662,8 @@ Uses crt, sysutils, strutils;
     begin
       clrscr;
       bankelHead;
-      displayWarn(['', 'Semua data akan dihapus', '']);
+      writeln(' Menghapus Semua Data Nasabah');
+      displayWarn(['', 'Data yang dihapus tidak dapat dikembalikan', '']);
 
       write(' Yakin hapus? (y/N) ');
       readln(choice);
@@ -635,11 +700,17 @@ Uses crt, sysutils, strutils;
         arg := arg - 1;
         writeln;
         writeln('   [', arg + 1,']');
-        writeln('   Jenis Akun    : ', customer[arg].role);
-        writeln('   Nama Lengkap  : ', customer[arg].fullname);
-        writeln('   Jenis Kelamin : ', customer[arg].gender);
-        writeln('   Pekerjaan     : ', customer[arg].job);
-        writeln('   Tabungan      : ', formatCurrency(customer[arg].balance));
+        writeln('   Jenis Akun     : ', customer[arg].role);
+        writeln('   Nama Lengkap   : ', customer[arg].fullname);
+        writeln('   Jenis Kelamin  : ', customer[arg].gender);
+        writeln('   Pekerjaan      : ', customer[arg].job);
+        writeln('   Tabungan       : ', formatCurrency(customer[arg].balance));
+        writeln('   Tanggal Dibuat : ',
+                customer[arg].joined.day,
+                '/',
+                customer[arg].joined.month,
+                '/',
+                customer[arg].joined.year);
       end;
 
       displayMsg(['', '']);
@@ -668,19 +739,24 @@ Uses crt, sysutils, strutils;
                      'Biarkan kosong pada bagian yang tidak ingin diubah',
                      '']);
 
+        writeln('                       [', customer[arg].fullname, ']');
+
         writeln('  [', customer[arg].role, ']');
         repeat
           write('  Jenis Akun: (bisnis/pribadi) ');
           readln(role);
           role := lowercase(role);
 
-          if role = '' then break;
-
           if role = ':k' then
           begin
             exit := true;
             break;
           end;
+
+          if role = '' then
+            role := customer[arg].role;
+
+          if role = '' then break;
 
           if (role <> '') and (role <> 'pribadi') and (role <> 'bisnis') then
           begin
@@ -771,20 +847,51 @@ Uses crt, sysutils, strutils;
           write('  Tabungan: ');
           readln(balance);
 
-          if balance = '' then break;
-
           if lowercase(balance) = ':k' then
           begin
             exit := true;
             break;
           end;
 
-          num := toNumber(balance);
+          if balance <> '' then
+            num := toNumber(balance)
+          else
+            num := customer[arg].balance;
 
-          if (num < 1) and (balance <> '') and (balance <> '0') then
+          if balance = '' then balance := '_';
+
+          if num < 1000000 then
           begin
-            write(' ');
-            displayWarn(['Tabungan diatur menjadi Rp. 0,-']);
+            if role = 'bisnis' then
+            begin
+              write(' ');
+              displayWarn(['Untuk bisnis, tabungan awal minimal Rp. 1.000.000,-', '']);
+              write('  Pindahkan ke pribadi? (Y/n) ');
+              readln(input);
+              writeln;
+
+              if lowercase(input) = 'n' then
+                balance := ''
+              else
+                role := 'pribadi';
+            end;
+
+            if (role = 'pribadi') and (num < 100000) then
+            begin
+              write(' ');
+              displayWarn(['Untuk pribadi, tabungan awal minimal Rp. 100.000,-', '']);
+              write('  Batalkan? (Y/n) ');
+              readln(input);
+              writeln;
+
+              if lowercase(input) = 'n' then
+                balance := ''
+              else
+              begin
+                exit := true;
+                break;
+              end;
+            end;
           end;
         until balance <> '';
         writeln;
@@ -874,6 +981,9 @@ Begin
         bankelHead;
         bankelMenu;
         displayMessage(errnum);
+
+        exportDataTo(database, customer, indexes);
+        importDataFrom(database, customer, indexes);
 
         askUserFor(command, argument);
         arg := toNumber(argument);
